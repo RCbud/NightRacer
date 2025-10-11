@@ -8,14 +8,23 @@
 using namespace std;
 using namespace sf;
 
+RectangleShape makeRect(Vector2f size, Vector2f origin01, Color fill) {
+    RectangleShape r(size);
+    r.setFillColor(fill);
+    r.setOrigin(size.x * origin01.x, size.y * origin01.y);
+    return r;
+}
+
 // ---------------------- Налаштування гри ----------------------
 struct Config {
     Vector2u windowSize{1280, 720};
     string windowTitle = "Night Racer";
     Color background = Color(50, 20, 30);
-    float playerRadius = 20.f;
+    RectangleShape playerShape = makeRect({200.f, 120.f}, {0.2f, 0.8f}, Color(80, 170, 220));
     Color playerColor = Color(220, 90, 90);
-    float moveSpeed = 320.f;
+    float angelSpeed = 250.f;
+    float moveSpeed = 600.f;
+    float acceleration = 100.f;
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
 };
@@ -31,16 +40,22 @@ public:
     Game(const Config& cfg)
     : cfg(cfg),
       window(VideoMode(cfg.windowSize.x, cfg.windowSize.y), cfg.windowTitle, Style::Titlebar | Style::Close),
-      player(cfg.playerRadius)
+      player(cfg.playerShape)
     {
         window.setVerticalSyncEnabled(true);
         player.setFillColor(cfg.playerColor);
-        player.setOrigin(cfg.playerRadius, cfg.playerRadius);
+        player.setPosition(400.f, 300.f);
+        player.setRotation(0.f);
+        player.setOrigin(cfg.playerShape.getSize().x,cfg.playerShape.getSize().y);
         player.setPosition(static_cast<float>(cfg.windowSize.x) / 2.f,
                            static_cast<float>(cfg.windowSize.y) / 2.f);
     }
 
     void run() {
+        float speed = 0.f;
+        float angel = 0.f;
+        float acceleration = 0.f;
+
         while (window.isOpen()) {
             processEvents();
 
@@ -48,7 +63,7 @@ public:
             if (dt > 0.1f) dt = 0.1f;
 
             if (!paused && hasFocus) {
-                update(dt);
+                update(&dt, &speed, &angel, &acceleration);
             }
 
             render();
@@ -82,27 +97,40 @@ private:
         input.right = Keyboard::isKeyPressed(Keyboard::D);
     }
 
-    void update(float dt) {
-        Vector2f dir(0.f, 0.f);
-        if (input.up)    dir.y -= 1.f;
-        if (input.down)  dir.y += 1.f;
-        if (input.left)  dir.x -= 1.f;
-        if (input.right) dir.x += 1.f;
 
-        if (dir.x != 0.f || dir.y != 0.f) {
-            float len = sqrt(dir.x * dir.x + dir.y * dir.y);
-            dir.x /= len;
-            dir.y /= len;
+    void update(const float * dt, float * speed, float * acceleration, float * angel) {
+        Vector2f dir(0.f, 0.f);
+        float isSpeed = 0.f;
+        float isAngel = 0.f;
+        if (input.up)    isSpeed += 1.f;
+        if (input.down)  isSpeed -= 1.f;
+        if (input.left)  isAngel -= 1.f;
+        if (input.right) isAngel += 1.f;
+
+        // if (isSpeed != 0.f || isAngel != 0.f) {
+            float dan = 30 * *dt;
+            *angel += dan * isAngel;
+            *angel = *angel > cfg.angelSpeed ? cfg.angelSpeed : *angel < -cfg.angelSpeed ? -cfg.angelSpeed : *angel; //limiting max angel speed
+            float da = cfg.acceleration * *dt;
+            *speed += da * isSpeed;
+            *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
+
+            printf("speed: %f, angel: %f\n", *speed, *angel);
+
+
+            dir.x = cos(*angel);
+            dir.y = sin(*angel);
 
             Vector2f pos = player.getPosition();
-            pos += dir * cfg.moveSpeed * dt;
+            pos += dir * *speed;
 
-            float r = cfg.playerRadius;
-            pos.x = max(r, min(pos.x, (float)cfg.windowSize.x - r));
-            pos.y = max(r, min(pos.y, (float)cfg.windowSize.y - r));
+            Vector2f ps =  cfg.playerShape.getSize();
+            pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
+            pos.y = max(ps.y, min(pos.y, (float)cfg.windowSize.y + ps.y));
 
             player.setPosition(pos);
-        }
+            player.setRotation(*angel);
+        // }
     }
 
     void render() {
@@ -114,7 +142,7 @@ private:
 private:
     Config cfg;
     RenderWindow window;
-    CircleShape player;
+    RectangleShape player;
     InputState input;
     bool paused = false;
     bool hasFocus = true;
