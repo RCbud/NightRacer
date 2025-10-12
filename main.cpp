@@ -8,6 +8,7 @@
 using namespace std;
 using namespace sf;
 
+// --------------------- Створення "Машинки" ------------------
 RectangleShape makeRect(Vector2f size, Vector2f origin01, Color fill) {
     RectangleShape r(size);
     r.setFillColor(fill);
@@ -28,6 +29,11 @@ struct Config {
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
 };
+
+inline void validateConfig(const Config& c) {
+    if (c.windowSize.x == 0 || c.windowSize.y == 0) throw runtime_error("Window size is zero");
+    if (c.moveSpeed < 0.f || c.acceleration < 0.f || c.angelSpeed < 0.f) throw runtime_error("Negative speeds/acceleration");
+}
 
 // ---------------------- Стан вводу ----------------------
 struct InputState {
@@ -125,9 +131,7 @@ private:
         *speed += da * isSpeed;
         *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
         *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
-        *angel -= *angel > 360.f ? 360.f : 0;
-
-        // printf("speed: %f, angel: %f, playerAngel: %f\n", *speed, *angel, player.getRotation());
+        *angel -= *angel > 360.f ? 360.f : *angel < 0.f ? -360 : 0;
 
 
         dir.x = cos(*angel * *dt);
@@ -162,8 +166,17 @@ private:
 };
 
 int main() {
-    Config cfg;
-    Game game(cfg);
-    game.run();
-    return 0;
+    try {
+        Config cfg;
+        validateConfig(cfg);
+        Game game(cfg);
+        game.run();
+        return 0;
+    } catch (const exception& e) {
+        fprintf(stderr, "Fatal error: %s\n", e.what());
+        return 1;
+    } catch (...) {
+        fprintf(stderr, "Fatal error: unknown exception\n");
+        return 2;
+    }
 }
