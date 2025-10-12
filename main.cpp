@@ -17,14 +17,14 @@ RectangleShape makeRect(Vector2f size, Vector2f origin01, Color fill) {
 
 // ---------------------- Налаштування гри ----------------------
 struct Config {
-    Vector2u windowSize{1280, 720};
+    Vector2u windowSize{1800, 1000};
     string windowTitle = "Night Racer";
     Color background = Color(50, 20, 30);
-    RectangleShape playerShape = makeRect({200.f, 120.f}, {0.2f, 0.8f}, Color(80, 170, 220));
+    RectangleShape playerShape = makeRect({160.f, 60.f}, {0.2f, 0.8f}, Color(80, 170, 220));
     Color playerColor = Color(220, 90, 90);
-    float angelSpeed = 250.f;
-    float moveSpeed = 600.f;
-    float acceleration = 100.f;
+    float angelSpeed = 150.f;
+    float moveSpeed = 400.f;
+    float acceleration = 250.f;
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
 };
@@ -46,7 +46,7 @@ public:
         player.setFillColor(cfg.playerColor);
         player.setPosition(400.f, 300.f);
         player.setRotation(0.f);
-        player.setOrigin(cfg.playerShape.getSize().x,cfg.playerShape.getSize().y);
+        player.setOrigin(cfg.playerShape.getSize().x*0.1f,cfg.playerShape.getSize().y/2);
         player.setPosition(static_cast<float>(cfg.windowSize.x) / 2.f,
                            static_cast<float>(cfg.windowSize.y) / 2.f);
     }
@@ -54,16 +54,27 @@ public:
     void run() {
         float speed = 0.f;
         float angel = 0.f;
+        float angelWheel = 0.f;
         float acceleration = 0.f;
+        float timer = 0.f;
+        int frames = 0;
 
         while (window.isOpen()) {
             processEvents();
 
             float dt = clock.restart().asSeconds();
             if (dt > 0.1f) dt = 0.1f;
+            timer += dt;
+            frames++;
+            if (timer >= 1) {
+                printf("FPS: %i\n", frames);
+                timer = 0.f;
+                frames = 0;
+            }
 
             if (!paused && hasFocus) {
-                update(&dt, &speed, &angel, &acceleration);
+
+                update(&dt, &speed, &angelWheel, &angel);
             }
 
             render();
@@ -98,7 +109,7 @@ private:
     }
 
 
-    void update(const float * dt, float * speed, float * acceleration, float * angel) {
+    void update(const float * dt, float * speed, float * angelWheel, float * angel) {
         Vector2f dir(0.f, 0.f);
         float isSpeed = 0.f;
         float isAngel = 0.f;
@@ -107,30 +118,31 @@ private:
         if (input.left)  isAngel -= 1.f;
         if (input.right) isAngel += 1.f;
 
-        // if (isSpeed != 0.f || isAngel != 0.f) {
-            float dan = 30 * *dt;
-            *angel += dan * isAngel;
-            *angel = *angel > cfg.angelSpeed ? cfg.angelSpeed : *angel < -cfg.angelSpeed ? -cfg.angelSpeed : *angel; //limiting max angel speed
-            float da = cfg.acceleration * *dt;
-            *speed += da * isSpeed;
-            *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
+        float dan = 180 * *dt;
+        *angelWheel += dan * isAngel;
+        *angelWheel = *angelWheel > cfg.angelSpeed ? cfg.angelSpeed : *angelWheel < -cfg.angelSpeed ? -cfg.angelSpeed : *angelWheel; //limiting max angel speed
+        float da = cfg.acceleration * *dt;
+        *speed += da * isSpeed;
+        *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
+        *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
+        *angel -= *angel > 360.f ? 360.f : 0;
 
-            printf("speed: %f, angel: %f\n", *speed, *angel);
+        // printf("speed: %f, angel: %f, playerAngel: %f\n", *speed, *angel, player.getRotation());
 
 
-            dir.x = cos(*angel);
-            dir.y = sin(*angel);
+        dir.x = cos(*angel * *dt);
+        dir.y = sin(*angel * *dt);
 
-            Vector2f pos = player.getPosition();
-            pos += dir * *speed;
+        Vector2f pos = player.getPosition();
+        pos += dir * *speed * *dt;
 
-            Vector2f ps =  cfg.playerShape.getSize();
-            pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
-            pos.y = max(ps.y, min(pos.y, (float)cfg.windowSize.y + ps.y));
+        Vector2f ps =  cfg.playerShape.getSize();
+        pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
+        pos.y = max(ps.y, min(pos.y, (float)cfg.windowSize.y + ps.y));
 
-            player.setPosition(pos);
-            player.setRotation(*angel);
-        // }
+        player.setPosition(pos);
+        player.setRotation(*angel);
+
     }
 
     void render() {
