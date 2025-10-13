@@ -37,7 +37,7 @@ inline void validateConfig(const Config& c) {
 
 // ---------------------- Стан вводу ----------------------
 struct InputState {
-    bool up = false, down = false, left = false, right = false;
+    bool up = false, down = false, left = false, right = false, space = false;
 };
 
 // ---------------------- Основний клас гри ----------------------
@@ -79,7 +79,6 @@ public:
             }
 
             if (!paused && hasFocus) {
-
                 update(&dt, &speed, &angelWheel, &angel);
             }
 
@@ -112,33 +111,35 @@ private:
         input.down  = Keyboard::isKeyPressed(Keyboard::S);
         input.left  = Keyboard::isKeyPressed(Keyboard::A);
         input.right = Keyboard::isKeyPressed(Keyboard::D);
+        input.space = Keyboard::isKeyPressed(Keyboard::Space);
     }
-
 
     void update(const float * dt, float * speed, float * angelWheel, float * angel) {
         Vector2f dir(0.f, 0.f);
-        float isSpeed = 0.f;
+        float isAcceleration = 0.f;
         float isAngel = 0.f;
-        if (input.up)    isSpeed += 1.f;
-        if (input.down)  isSpeed -= 1.f;
+        float isHandBrake = 0.f;
+        if (input.up)    isAcceleration += 1.f;
+        if (input.down)  isAcceleration -= 1.f;
         if (input.left)  isAngel -= 1.f;
         if (input.right) isAngel += 1.f;
+        if (input.space) isHandBrake -= 1.f;
 
         float dan = 180 * *dt;
         *angelWheel += dan * isAngel;
         *angelWheel = *angelWheel > cfg.angelSpeed ? cfg.angelSpeed : *angelWheel < -cfg.angelSpeed ? -cfg.angelSpeed : *angelWheel; //limiting max angel speed
         float da = cfg.acceleration * *dt;
-        *speed += da * isSpeed;
+        *speed += da * isAcceleration;
         *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
-        *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
-        *angel -= *angel > 360.f ? 360.f : *angel < 0.f ? -360 : 0;
 
-
-        dir.x = cos(*angel * *dt);
-        dir.y = sin(*angel * *dt);
+        dir.x = cos((*angel + atan(30/110) * isAngel) * *dt);
+        dir.y = sin((*angel + atan(30/110) * isAngel) * *dt);
 
         Vector2f pos = player.getPosition();
         pos += dir * *speed * *dt;
+
+        *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
+        *angel -= *angel > 360.f ? 360.f : *angel < 0.f ? -360 : 0;
 
         Vector2f ps =  cfg.playerShape.getSize();
         pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
