@@ -52,7 +52,7 @@ public:
         player.setFillColor(cfg.playerColor);
         player.setPosition(400.f, 300.f);
         player.setRotation(0.f);
-        player.setOrigin(cfg.playerShape.getSize().x*0.1f,cfg.playerShape.getSize().y/2);
+        player.setOrigin(cfg.playerShape.getSize().x*0.2f,cfg.playerShape.getSize().y/2);
         player.setPosition(static_cast<float>(cfg.windowSize.x) / 2.f,
                            static_cast<float>(cfg.windowSize.y) / 2.f);
     }
