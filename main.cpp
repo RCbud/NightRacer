@@ -4,8 +4,10 @@
 #include <cmath>
 #include <algorithm>
 #include <string>
+#include <filesystem>
 
 using namespace std;
+
 using namespace sf;
 
 // --------------------- Створення "Машинки" ------------------
@@ -23,9 +25,13 @@ struct Config {
     Color background = Color(50, 20, 30);
     RectangleShape playerShape = makeRect({160.f, 60.f}, {0.2f, 0.8f}, Color(80, 170, 220));
     Color playerColor = Color(220, 90, 90);
+    float textureAngleOffset = 90.f;
+
     float angelSpeed = 520.f;
     float moveSpeed = 1200.f;
     float acceleration = 450.f;
+    float carScale = 0.5f;
+
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
 };
@@ -47,15 +53,33 @@ public:
     : cfg(cfg),
       // window(VideoMode(cfg.windowSize.x, cfg.windowSize.y), cfg.windowTitle, Style::Titlebar | Style::Close),
         window(sf::VideoMode::getDesktopMode(), cfg.windowTitle, sf::Style::Fullscreen),
-        player(cfg.playerShape)
+        car(cfg.playerShape)
     {
         window.setVerticalSyncEnabled(true);
-        player.setFillColor(cfg.playerColor);
-        player.setPosition(400.f, 300.f);
-        player.setRotation(0.f);
-        player.setOrigin(cfg.playerShape.getSize().x*0.2f,cfg.playerShape.getSize().y/2);
-        player.setPosition(static_cast<float>(cfg.windowSize.x) / 2.f,
+        car.setFillColor(cfg.playerColor);
+        car.setPosition(400.f, 300.f);
+
+        car.setRotation(0.f);
+        car.setPosition(static_cast<float>(cfg.windowSize.x) / 2.f,
                            static_cast<float>(cfg.windowSize.y) / 2.f);
+
+        // texturing car
+        string path = (filesystem::current_path().parent_path() / "textures/cars/Ferrari_FXX_2005_(Amalgam_Models).png").string();
+        if (path.empty()) throw runtime_error("Cannot find texture for " + path);
+
+        if (!carTexture.loadFromFile(path)) throw runtime_error("Cannot load " + path);
+        carTexture.setSmooth(true);
+
+        Vector2u ts = carTexture.getSize();
+        float aspect = static_cast<float>(ts.y) / static_cast<float>(ts.x);
+        float targetWidth = cfg.playerShape.getSize().x * cfg.carScale;
+        float targetHeight = targetWidth * aspect;
+
+        car.setSize({targetWidth, targetHeight});
+        car.setTexture(&carTexture);
+        car.setFillColor(Color::White);
+        car.setOrigin(car.getSize().x * 0.5f, car.getSize().y * 0.8f);
+
     }
 
     void run() {
@@ -136,7 +160,7 @@ private:
         dir.x = cos(angleRad);
         dir.y = sin(angleRad);
 
-        Vector2f pos = player.getPosition();
+        Vector2f pos = car.getPosition();
         pos += dir * *speed * *dt;
 
         *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
@@ -148,22 +172,23 @@ private:
         pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
         pos.y = max(ps.y, min(pos.y, (float)cfg.windowSize.y + ps.y));
 
-        player.setPosition(pos);
-        player.setRotation(*angel);
+        car.setPosition(pos);
+        car.setRotation(*angel + cfg.textureAngleOffset);
 
     }
 
     void render() {
         window.clear(cfg.background);
-        window.draw(player);
+        window.draw(car);
         window.display();
     }
 
 private:
     Config cfg;
     RenderWindow window;
-    RectangleShape player;
+    RectangleShape car;
     InputState input;
+    Texture carTexture;
     bool paused = false;
     bool hasFocus = true;
     Clock clock;
