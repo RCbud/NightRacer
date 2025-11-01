@@ -189,13 +189,29 @@ private:
 
         float dan = 800 * *dt;
         *angelWheel += dan * isAngel;
-        *angelWheel = *angelWheel > cfg.angelSpeed ? cfg.angelSpeed : *angelWheel < -cfg.angelSpeed ? -cfg.angelSpeed : *angelWheel; //limiting max angel speed
+        *angelWheel = *angelWheel > cfg.angelSpeed ? cfg.angelSpeed : *angelWheel < -cfg.angelSpeed ? -cfg.angelSpeed : *angelWheel;
+
         float da = cfg.acceleration * *dt;
-        float stopping = *speed < -5 ? (*speed * *dt) / 0.005f : *speed > 5 ? (*speed * *dt) / -0.005f : 0;
-        stopping *= *dt;
-        *speed += isHandBrake < 0.1f ? da * isAcceleration : stopping;
-        if (isHandBrake > 0.1f) *speed = *speed < -10 || *speed > 10 ? *speed : 0.f;
-        else *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
+        const float brakeStrength = 3.2f;
+        const float snapStopSpeed = 10.0f;
+        const bool handbrake = (isHandBrake > 0.5f) || (isHandBrake < -0.5f);
+
+        if (handbrake) {
+            if (fabsf(*speed) <= snapStopSpeed) {
+                *speed = 0.0f;
+            } else {
+                float prev = *speed;
+                *speed += (-brakeStrength * (*speed)) * (*dt);
+                if ((prev > 0.0f && *speed < 0.0f) || (prev < 0.0f && *speed > 0.0f)) {
+                    *speed = 0.0f;
+                }
+            }
+        } else {
+            *speed += da * isAcceleration;
+        }
+
+        if (*speed >  cfg.moveSpeed)  *speed =  cfg.moveSpeed;
+        if (*speed < -cfg.moveSpeed)  *speed = -cfg.moveSpeed;
 
         float angleRad = *angel * 3.14159265358979323846f / 180.f;
         dir.x = cos(angleRad);
@@ -204,12 +220,11 @@ private:
         Vector2f pos = car.getPosition();
         pos += dir * *speed * *dt;
 
-        *angel += (*speed/cfg.moveSpeed * *angelWheel * *dt);
+        *angel += (*speed / cfg.moveSpeed) * (*angelWheel) * (*dt);
         *angel = fmod(*angel, 360.f);
         if (*angel < 0.f) *angel += 360.f;
 
-
-        Vector2f ps =  cfg.playerShape.getSize();
+        Vector2f ps = cfg.playerShape.getSize();
         pos.x = max(ps.x, min(pos.x, background.getSize().x + ps.x));
         pos.y = max(ps.y, min(pos.y, background.getSize().y + ps.y));
 
@@ -219,7 +234,6 @@ private:
         Vector2f localCenter(car.getSize().x * 0.5f, car.getSize().y * 0.5f);
         Vector2f worldCenter = car.getTransform().transformPoint(localCenter);
         view.setCenter(worldCenter);
-        // view.setRotation(*angel+90); // Camera rotation
         window.setView(view);
     }
 
