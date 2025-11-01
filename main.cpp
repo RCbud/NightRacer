@@ -28,9 +28,9 @@ struct Config {
     float textureAngleOffset = 90.f;
 
     float angelSpeed = 520.f;
-    float moveSpeed = 1200.f;
+    float moveSpeed = 3600.f;
     float acceleration = 450.f;
-    float carScale = 0.5f;
+    float carScale = 0.7f;
 
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
@@ -80,6 +80,19 @@ public:
         car.setFillColor(Color::White);
         car.setOrigin(car.getSize().x * 0.5f, car.getSize().y * 0.8f);
 
+        string pathBG = (filesystem::current_path().parent_path() / "textures/bg/asphalt_road.png").string();
+        if (pathBG.empty()) throw runtime_error("Cannot find texture for " + pathBG);
+
+        if (!backgroundTexture.loadFromFile(pathBG)) throw runtime_error("Cannot load " + pathBG);
+        backgroundTexture.setRepeated(true);
+
+        background.setSize(Vector2f(20000.f, 20000.f));
+        background.setTexture(&backgroundTexture);
+        background.setTextureRect(IntRect(0, 0, 10000, 10000));
+        background.setPosition(0.f, 0.f);
+
+        view.setSize(cfg.windowSize.x, cfg.windowSize.y);
+        view.setCenter(car.getPosition());
     }
 
     void run() {
@@ -169,26 +182,36 @@ private:
 
 
         Vector2f ps =  cfg.playerShape.getSize();
-        pos.x = max(ps.x, min(pos.x, (float)cfg.windowSize.x + ps.x));
-        pos.y = max(ps.y, min(pos.y, (float)cfg.windowSize.y + ps.y));
+        pos.x = max(ps.x, min(pos.x, background.getSize().x + ps.x));
+        pos.y = max(ps.y, min(pos.y, background.getSize().y + ps.y));
 
         car.setPosition(pos);
         car.setRotation(*angel + cfg.textureAngleOffset);
 
+        Vector2f localCenter(car.getSize().x * 0.5f, car.getSize().y * 0.5f);
+        Vector2f worldCenter = car.getTransform().transformPoint(localCenter);
+        view.setCenter(worldCenter);
+        // view.setRotation(*angel+90); // Camera rotation
+        window.setView(view);
     }
 
     void render() {
         window.clear(cfg.background);
+        window.clear(cfg.background);
+        window.draw(background);
         window.draw(car);
         window.display();
     }
 
 private:
+    View view;
     Config cfg;
+    RectangleShape background;
     RenderWindow window;
     RectangleShape car;
     InputState input;
     Texture carTexture;
+    Texture backgroundTexture;
     bool paused = false;
     bool hasFocus = true;
     Clock clock;
