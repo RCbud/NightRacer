@@ -24,13 +24,13 @@ struct Config {
     string windowTitle = "Night Racer";
     Color background = Color(50, 20, 30);
     RectangleShape playerShape = makeRect({160.f, 60.f}, {0.2f, 0.8f}, Color(80, 170, 220));
-    Color playerColor = Color(220, 90, 90);
+    // Color playerColor = Color(220, 90, 90);
     float textureAngleOffset = 90.f;
 
-    float angelSpeed = 520.f;
+    float angelSpeed = 1360.f;
     float moveSpeed = 3600.f;
     float acceleration = 450.f;
-    float carScale = 0.7f;
+    float carScale = 0.8f;
 
     Keyboard::Key pauseKey = Keyboard::P;
     Keyboard::Key exitKey = Keyboard::Escape;
@@ -46,6 +46,12 @@ struct InputState {
     bool up = false, down = false, left = false, right = false, space = false;
 };
 
+struct trafficCone {
+    RectangleShape cone;
+    Texture texture;
+    Vector2u textureSize;
+    Vector2u size;
+};
 // ---------------------- Основний клас гри ----------------------
 class Game {
 public:
@@ -56,7 +62,6 @@ public:
         car(cfg.playerShape)
     {
         window.setVerticalSyncEnabled(true);
-        car.setFillColor(cfg.playerColor);
         car.setPosition(400.f, 300.f);
 
         car.setRotation(0.f);
@@ -79,6 +84,26 @@ public:
         car.setTexture(&carTexture);
         car.setFillColor(Color::White);
         car.setOrigin(car.getSize().x * 0.5f, car.getSize().y * 0.8f);
+
+        traffic_cones.clear();
+        traffic_cones.reserve(10);
+
+        for (int i = 0; i < 10; i++) {
+            traffic_cones.emplace_back();
+            auto& coneObj = traffic_cones.back();
+
+            string pathCone = (filesystem::current_path().parent_path() / "textures/attributes/traffic_cone.png").string();
+            if (pathCone.empty()) throw runtime_error("Cannot find texture for " + pathCone);
+            if (!coneObj.texture.loadFromFile(pathCone)) throw runtime_error("Cannot load " + pathCone);
+            coneObj.texture.setSmooth(true);
+
+            coneObj.textureSize = coneObj.texture.getSize();
+            coneObj.size = {30, 30};
+            coneObj.cone.setSize(Vector2f(coneObj.size.x, coneObj.size.y));
+            coneObj.cone.setOrigin(coneObj.size.x / 2.f, coneObj.size.y);
+            coneObj.cone.setTexture(&coneObj.texture);
+            coneObj.cone.setPosition(i * 150.f, 500.f);
+        }
 
         string pathBG = (filesystem::current_path().parent_path() / "textures/bg/asphalt_road.png").string();
         if (pathBG.empty()) throw runtime_error("Cannot find texture for " + pathBG);
@@ -160,14 +185,17 @@ private:
         if (input.down)  isAcceleration -= 2.f;
         if (input.left)  isAngel -= 1.f;
         if (input.right) isAngel += 1.f;
-        if (input.space) isHandBrake -= 1.f;
+        if (input.space) isHandBrake += 1.f;
 
         float dan = 800 * *dt;
         *angelWheel += dan * isAngel;
         *angelWheel = *angelWheel > cfg.angelSpeed ? cfg.angelSpeed : *angelWheel < -cfg.angelSpeed ? -cfg.angelSpeed : *angelWheel; //limiting max angel speed
         float da = cfg.acceleration * *dt;
-        *speed += da * isAcceleration;
-        *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
+        float stopping = *speed < -5 ? (*speed * *dt) / 0.005f : *speed > 5 ? (*speed * *dt) / -0.005f : 0;
+        stopping *= *dt;
+        *speed += isHandBrake < 0.1f ? da * isAcceleration : stopping;
+        if (isHandBrake > 0.1f) *speed = *speed < -10 || *speed > 10 ? *speed : 0.f;
+        else *speed = *speed > cfg.moveSpeed ? cfg.moveSpeed : *speed < -cfg.moveSpeed ? -cfg.moveSpeed : *speed; //limiting max speed
 
         float angleRad = *angel * 3.14159265358979323846f / 180.f;
         dir.x = cos(angleRad);
@@ -200,6 +228,9 @@ private:
         window.clear(cfg.background);
         window.draw(background);
         window.draw(car);
+        for (const trafficCone& cone: traffic_cones) {
+            window.draw(cone.cone);
+        }
         window.display();
     }
 
@@ -209,6 +240,7 @@ private:
     RectangleShape background;
     RenderWindow window;
     RectangleShape car;
+    vector<trafficCone> traffic_cones;
     InputState input;
     Texture carTexture;
     Texture backgroundTexture;
